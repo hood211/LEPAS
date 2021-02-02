@@ -1,0 +1,68 @@
+---
+title: "LEPAS_FTG_Data_for_2020_20210106"
+author: "DRO"
+date: "2/11/2020"
+output: html_document
+---
+
+Run the following two code chunks to pull the necessary data for FTG. Code can be updated as needed for future data pulls.
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+# Require R packages.
+library(tidyverse)
+library(RSQLite)
+
+# Connect to database -- change filepath as needed.
+lpdb <- dbConnect(SQLite(), "~/Documents/OSU/Projects/LEPAS_2020.db")
+
+# Pull relevant columns from tables using embedded SQL code.
+zfin <- dbGetQuery(lpdb, "SELECT 
+                   ZF.Sample_ID,
+                   ZS.Sample_date,
+                   ZS.Sample_site,
+                   ZF.Genus_sp_lifestage,
+                   ZF.Life_stage,
+                   ZF.Number_counted,
+                   ZF.Zoop_density,
+                   ZF.Zoop_biomass,
+                   ZF.Zoop_len_avg,
+                   ZT.Order1,
+                   ZT.FTG_Groups_1,  
+                   ZT.biop_152_codes,
+                   ZT.biop_152_names,
+                   ZS.Project
+                   FROM Zoop_final ZF
+                   LEFT JOIN Zoop_sample_info ZS ON ZF.Sample_ID = ZS.Sample_ID
+                   LEFT JOIN Zoop_taxa_groups ZT ON ZF.Genus_sp_lifestage = ZT.Genus_sp_lifestage
+                   WHERE Sample_date LIKE '%2020%' AND Project='LEPAS'")
+
+```
+
+
+```{r}
+
+FTG1 <- zfin %>% 
+  mutate(Zoop_density = ifelse(is.na(Zoop_density), 0, Zoop_density)) %>% 
+  mutate(Genus_sp_lifestage = ifelse(Order1=="Calanoida" & Life_stage=="Younger", "Calanoida_immature", Genus_sp_lifestage),
+         Genus_sp_lifestage = ifelse(Order1=="Cyclopoida" & Life_stage=="Younger", "Cyclopoida_immature", Genus_sp_lifestage)) %>% 
+  select(-Life_stage, -Project, -Order1) %>% 
+  group_by(Sample_ID, Genus_sp_lifestage) %>% 
+  mutate(Number_counted = sum(Number_counted, na.rm=T),
+         Zoop_density = sum(Zoop_density, na.rm=T),
+         Zoop_biomass = sum(Zoop_biomass, na.rm=T),
+         Zoop_len_avg = mean(Zoop_len_avg, na.rm=T)) %>% 
+  ungroup() %>% 
+  distinct()
+
+# Write .csv file -- change filepath as needed.
+write.csv(FTG1, "~/Desktop/FTG_LEPAS_Densities_2020_20210129.csv")
+
+```
+
+
+
+
+
