@@ -128,9 +128,9 @@ FTG2c[FTG2c$dups == TRUE, ]
 
 # summary by key
 # not sure this is useful
-FTG2c %>% 
-  split(.$key) %>% 
-  map(summary)
+# FTG2c %>% 
+#   split(.$key) %>% 
+#   map(summary)
 
 # quick plot to check for weird data
 ggplot(FTG2 %>% 
@@ -144,4 +144,4 @@ ggplot(FTG2 %>%
   facet_wrap(vars(gsl))
 
 # Write .csv file -- change filepath as needed.
-write.csv(FTG1, file.path(here::here("03_exports","FTGdata_2020.csv")))
+write.csv(FTG2, file.path(here::here("03_exports","FTGdata_2020.csv")))
