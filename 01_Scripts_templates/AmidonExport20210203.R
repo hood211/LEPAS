@@ -97,16 +97,27 @@ ZP3 <- ZP2 %>%
   # drop eggs
   filter(Life_stage2 != "Egg") %>% 
   droplevels() %>% 
-  mutate(MajorTaxaGroup = as.factor(ifelse(Order1 %in% RotiferGroups, "Rotifers",
-                                           ifelse(Order1 %in% CopepodOther, "CopepodOther", Order1)))) %>% 
-  group_by(Sample_ID, Sample_date, Sample_site, MajorTaxaGroup, Life_stage2) %>% 
+  # combine rotifer orders 
+  # drop "unusual" copepods
+  mutate(MajorTaxaGroup = ifelse(Order1 %in% RotiferGroups, "Rotifers",
+                                 ifelse(Order1 %in% CopepodOther, "CopepodOther", Order1))) %>%
+  # pull out big predators
+  mutate(MajorTaxaGroup2 = ifelse(Genus_sp_95toPresent == "Bythotrephes longimanus", "Bythotrephes longimanus",MajorTaxaGroup),
+         MajorTaxaGroup2 = ifelse(Genus_sp_95toPresent == "Cercopagis pengoi", "Cercopagis pengoi",MajorTaxaGroup2),
+         MajorTaxaGroup2 = ifelse(Genus_sp_95toPresent == "Leptodora kindti", "Leptodora kindti",
+                                  ifelse(Genus_sp_95toPresent == "Leptodora kindti immature", "Leptodora kindti",MajorTaxaGroup2))) %>% 
+  group_by(Sample_ID, Sample_date, Sample_site, MajorTaxaGroup2, Life_stage2) %>% 
   summarize(Zoop_biomass = sum(Zoop_biomass, na.rm = T)) %>% 
-  mutate(MajorTaxaGroup2 = as.factor(paste0(MajorTaxaGroup,"_",Life_stage2)))%>% 
+  mutate(MajorTaxaGroup3 = as.factor(paste0(MajorTaxaGroup2,"_",Life_stage2)))%>% 
   ungroup() %>% 
-  select(-MajorTaxaGroup, -Life_stage2)
+  select(-MajorTaxaGroup2, -Life_stage2) %>% 
+  # remove "unusual" copepods, byth, and cercopagis
+  # the byth and cercopagis data can not be trusted
+  filter(!MajorTaxaGroup3 %in% c("CopepodOther_Nauplii", "CopepodOther_YO", "Cercopagis pengoi_YO", "Bythotrephes longimanus_YO")) %>% 
+  droplevels()
 
 ZP4 <- ZP3 %>% 
-  pivot_wider(id_cols = c(Sample_ID, Sample_date, Sample_site, MajorTaxaGroup2), names_from = MajorTaxaGroup2, values_from = Zoop_biomass) %>% 
+  pivot_wider(id_cols = c(Sample_ID, Sample_date, Sample_site, MajorTaxaGroup3), names_from = MajorTaxaGroup3, values_from = Zoop_biomass) %>% 
   left_join(Zsmp %>% 
               select(Sample_ID, Surface_temp), by = "Sample_ID") %>% 
   ungroup() 
@@ -118,7 +129,6 @@ ZP4 <- ZP3 %>%
 ############
 
 # look are these closely - is anything weird, if so chase down
-# e.g, I found a typo in Genus_sp_lifestage because there were nas in the biop codes
 summary(ZP4)
 
 
@@ -142,14 +152,19 @@ duplicated(ZP4$Sample_ID)
 
 # quick plot to check for weird data
 ggplot(ZP4 %>% 
-         mutate(gsl = paste0(Genus_sp,"_",Life_stage2)), aes(y = log(Zoop_density+1), x = Sample_date, color = Sample_site)) +
+         pivot_longer(cols = c(Calanoida_Nauplii:Surface_temp), names_to = "taxa", values_to = "biomass"), aes(y = log(biomass+1), x = Sample_date, color = Sample_site)) +
   geom_point() +
-  facet_wrap(vars(gsl))
+  facet_wrap(vars(taxa))
 
-ggplot(FTG2 %>% 
-         mutate(gsl = paste0(Genus_sp,"_",Life_stage2)), aes(y = log(Zoop_biomass+1), x = Sample_date, color = Sample_site)) +
+ggplot(ZP4 %>% 
+         pivot_longer(cols = c(Calanoida_Nauplii:Surface_temp), names_to = "taxa", values_to = "biomass") %>% 
+        mutate(Y = strftime(Sample_date, format = "%Y"),
+               # doy = as.numeric(strftime(Sample_date, format = "%j"))), aes(y = log(biomass+1), x = doy, color = Y)) +
+  doy = as.numeric(strftime(Sample_date, format = "%j"))), aes(y = biomass, x = doy, color = Y)) +
   geom_point() +
-  facet_wrap(vars(gsl))
+  facet_wrap(vars(taxa), scales = "free_y")
+
+
 
 # Write .csv file -- change filepath as needed.
 write.csv(ZP4, file.path(here::here("03_exports","Amidon_LEPAS_WB_15_19.csv")))
