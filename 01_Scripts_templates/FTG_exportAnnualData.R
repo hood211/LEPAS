@@ -1,6 +1,6 @@
 #####
 # Code for pulling data for FTG
-# Originally DRO (11 Feb 20), updated JMH 2 Feb 21
+# Originally DRO (11 Feb 20), revised JMH 24 Feb 21
 
 ###
 # Required libraries
@@ -24,6 +24,7 @@ LEPASdbPath <- file.path(here::here("/Users/hood.211/Dropbox/JMH_dropbox/stephan
 lpdb <- dbConnect(SQLite(), LEPASdbPath)
 
 # Pull relevant columns from tables using embedded SQL code.
+# also getting stuff to calculate density of eggs
 zfin <- dbGetQuery(lpdb, "SELECT 
                    ZF.Sample_ID,
                    ZS.Sample_date,
@@ -35,11 +36,46 @@ zfin <- dbGetQuery(lpdb, "SELECT
                    ZF.Zoop_biomass,
                    ZF.Zoop_len_avg,
                    ZT.Order1,
-                   ZS.Project
+                   ZS.Project,
+                   ZS.Subsampled_vol_mL,
+                   ZS.Diluted_vol_mL
                    FROM Zoop_final ZF
                    LEFT JOIN Zoop_sample_info ZS ON ZF.Sample_ID = ZS.Sample_ID
                    LEFT JOIN Zoop_taxa_groups ZT ON ZF.Genus_sp_lifestage = ZT.Genus_sp_lifestage
                    WHERE Sample_date LIKE '%2020%' AND Project='LEPAS'")
+
+LEFT JOIN Sample_inventory SI ON ZF.Sample_ID = SI.Sample_ID
+SI.Vol_sampled_L
+
+# missing the density for eggs so have to calculate by hand
+# get the volume sampled. Can't seem to do this in one query
+# no sample volumes for 2020 FTG sites
+zVolSmp <-  dbGetQuery(lpdb, "SELECT 
+                   SI.Sample_ID,
+                   SI.Sample_date,
+                   SI.Sample_site,
+                   SI.Meter_1,
+                   SI.Meter_2,
+                   SI.Meter_B1,
+                   SI.Meter_B2,
+                   SI.Vol_sampled_L
+                   FROM Sample_inventory SI") %>% 
+  mutate(Sample_date = as.POSIXct(Sample_date, format = "%Y-%m-%d"),
+         Vol_sampled_L2 = (Meter_2 - Meter_1)*5.2765) %>% #protocol says meter_1 - meter_2
+  filter(Sample_date > as.POSIXct("2019-01-01", format = "%Y-%m-%d")) %>% 
+  filter(Sample_site %in% c("1279_20m", "1281_10m", "27-918", "37-890")) 
+
+# my calc is the same as what is in database after I change formula
+ggplot(zVolSmp, aes(y = Vol_sampled_L2, x = Vol_sampled_L)) +geom_point()
+
+zfin2 <- zfin %>% 
+  left_join(zVolSmp, by = "Sample_ID") %>% 
+  mutate(Zoop_density2 = (Number_counted*Diluted_vol_mL)/(Subsampled_vol_mL*Vol_sampled_L2))
+
+# NEED TO TAKE UP HERE AND TRANSFER THESE TO EGGS
+
+# these are the same  
+ggplot(zfin2, aes(y = Zoop_density2, x = Zoop_density)) + geom_point()
 
 
 
@@ -90,11 +126,11 @@ FTG1 <- zfin %>%
 # aggregate to genus_sp (from year of counting) and lifestage2 (w/o younger older)
 ############
 
-# just 95-pres
+# get different taxonomy groups
+# Doing the grouping at the genus_sp_95to present level
 LEPASgenSp <- dbGetQuery(lpdb, "SELECT 
                   ZT.Genus_sp_lifestage,
                   ZT.Genus_sp_95toPresent,
-                  ZT.Genus_sp, 
                   biop_152_codes,
                   biop_152_names
                   FROM Zoop_taxa_groups ZT") %>% 
@@ -103,21 +139,17 @@ LEPASgenSp <- dbGetQuery(lpdb, "SELECT
 
 FTG2 <- FTG1 %>% 
   left_join(LEPASgenSp, by = "Genus_sp_lifestage") %>% 
-  mutate(across(c(Genus_sp, Genus_sp_95toPresent, biop_152_codes, biop_152_names), factor)) %>% 
+  mutate(across(c(Genus_sp_95toPresent, biop_152_codes, biop_152_names), factor)) %>% 
+  # correcting a typo in the biop codes
+  mutate(biop_152_names = fct_recode(biop_152_names, "Cop eggs" = "Cop  eggs")) %>% 
   # BEING VERY CAUTIOUS ABOUT AGGREGATING ACROSS THESE GROUPS
   # grouping by Smp ID and Genus_sp_lifestage rest along for ride
-    group_by(Sample_ID, Genus_sp_lifestage, Life_stage2, Sample_date, Sample_site, biop_152_codes, biop_152_names, Genus_sp_95toPresent, Genus_sp) %>% 
+    group_by(Sample_ID, Genus_sp_lifestage, Life_stage2, Sample_date, Sample_site, biop_152_codes, biop_152_names, Genus_sp_95toPresent) %>% 
   summarize(Number_counted = sum(Number_counted, na.rm=T),
             Zoop_density = sum(Zoop_density, na.rm=T),
             Zoop_biomass = sum(Zoop_biomass, na.rm=T),
             Zoop_len_avg = mean(Zoop_len_avg, na.rm=T)) %>% 
-  # grouping by Smp ID, Genus_sp, and Life stage2, rest along for ride - removing Genus_sp_lifestage
-  group_by(Sample_ID, Genus_sp, Life_stage2, Sample_date, Sample_site, biop_152_codes, biop_152_names, Genus_sp_95toPresent)%>% 
-  summarize(Number_counted = sum(Number_counted, na.rm=T),
-            Zoop_density = sum(Zoop_density, na.rm=T),
-            Zoop_biomass = sum(Zoop_biomass, na.rm=T),
-            Zoop_len_avg = mean(Zoop_len_avg, na.rm=T)) %>%
-  # grouping by Smp ID, Genus_sp_95toPresent, and Life stage2, rest along for ride - removing Genus_sp
+  # grouping by Smp ID, Genus_sp_95toPresent, and Life stage2, rest along for ride - removing Genus_sp_lifestage
   group_by(Sample_ID, Genus_sp_95toPresent, Life_stage2, Sample_date, Sample_site, biop_152_codes, biop_152_names)%>% 
   summarize(Number_counted = sum(Number_counted, na.rm=T),
             Zoop_density = sum(Zoop_density, na.rm=T),
@@ -161,6 +193,10 @@ FTG2c[FTG2c$dups == TRUE, ]
 
 # quick plot to check for weird data
 ggplot(FTG2, aes(y = log(Zoop_density+1), x = Sample_date, color = Sample_site)) +
+  geom_point() +
+  facet_wrap(vars(biop_152_names), scales = "free_y")
+
+ggplot(FTG2, aes(y = Zoop_density, x = Sample_date, color = Sample_site)) +
   geom_point() +
   facet_wrap(vars(biop_152_names), scales = "free_y")
 
