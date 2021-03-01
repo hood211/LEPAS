@@ -181,6 +181,18 @@ ggplot(ZP4 %>%
   facet_wrap(vars(Y))
 
 ggplot(ZP4 %>% 
+         mutate(doy = as.numeric(strftime(Sample_date, format = "%j")),
+                Y = as.numeric(strftime(Sample_date, format = "%Y"))), aes(y = log(Cyclopoid+1), x = doy, color = Sample_site)) +
+  geom_point() +
+  facet_wrap(vars(Y))
+
+ggplot(ZP4 %>% 
+         mutate(doy = as.numeric(strftime(Sample_date, format = "%j")),
+                Y = as.numeric(strftime(Sample_date, format = "%Y"))), aes(y = log(Veligers+1), x = doy, color = Sample_site)) +
+  geom_point() +
+  facet_wrap(vars(Y))
+
+ggplot(ZP4 %>% 
          pivot_longer(cols = c(Calanoida_Nauplii:Surface_temp), names_to = "taxa", values_to = "biomass") %>% 
         mutate(Y = strftime(Sample_date, format = "%Y"),
                # doy = as.numeric(strftime(Sample_date, format = "%j"))), aes(y = log(biomass+1), x = doy, color = Y)) +
