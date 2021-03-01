@@ -214,3 +214,5 @@ ggplot(FTG2, aes(y = Zoop_biomass, x = Sample_date, color = Sample_site)) +
 
 # Write .csv file -- change filepath as needed.
 write.csv(FTG2, file.path(here::here("03_exports","FTGdata_2020.csv")))
+
+save.image(file.path(here::here("04_SavedRimages","FTG_exportAnnualData.R")))

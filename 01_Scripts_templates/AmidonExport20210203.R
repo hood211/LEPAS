@@ -1,6 +1,6 @@
 #####
 # Exporting LEPAS data for Zach Amidon's whitefish project
-# JMH 3 Feb 2021
+# JMH 3 Feb 2021, updated 28 Feb 21
 
 ###
 # Required libraries
@@ -67,7 +67,7 @@ ZP1 <- Zfin %>%
   mutate(Sample_date = as.POSIXct(Sample_date, format = "%Y-%m-%d"),
          Y = as.numeric(as.character(strftime(Sample_date, format = "%Y")))) %>% 
   # select dates
-  filter(Y >= 2015 & Y < 2020) %>% 
+  filter(Y >= 1995 & Y < 2020) %>% 
   # Select sites
   filter(Sample_site %in% WBLEPASsites) %>% 
   # make all younger individuals immatures - year-to-year comparisons are not possible without this
@@ -120,8 +120,11 @@ ZP4 <- ZP3 %>%
   pivot_wider(id_cols = c(Sample_ID, Sample_date, Sample_site, MajorTaxaGroup3), names_from = MajorTaxaGroup3, values_from = Zoop_biomass) %>% 
   left_join(Zsmp %>% 
               select(Sample_ID, Surface_temp), by = "Sample_ID") %>% 
-  ungroup() 
-
+  ungroup() %>% 
+  rename(Calanoida = "Calanoida_YO", Cladocera = "Cladocera_YO", Cyclopoida = "Cyclopoida_YO", Leptodora= "Leptodora kindti_YO",
+         Rotifers = "Rotifers_YO", Veligers = "Veneroida_Veliger", TempC = "Surface_temp") %>% 
+  #20050922-27-918 has temp = 0
+  mutate(TempC = ifelse(TempC <0.5, as.numeric("NA"), TempC))
 
 
 ############
@@ -133,7 +136,7 @@ summary(ZP4)
 
 
 # are there dups
-duplicated(ZP4$Sample_ID)
+dim(ZP4[duplicated(ZP4$Sample_ID) == TRUE,])
 
 # ZP4c <- ZP4 %>% 
 #   mutate(key = paste0(Sample_ID, "_", MajorTaxaGroup2),
@@ -152,9 +155,30 @@ duplicated(ZP4$Sample_ID)
 
 # quick plot to check for weird data
 ggplot(ZP4 %>% 
-         pivot_longer(cols = c(Calanoida_Nauplii:Surface_temp), names_to = "taxa", values_to = "biomass"), aes(y = log(biomass+1), x = Sample_date, color = Sample_site)) +
+         pivot_longer(cols = c(Calanoida_Nauplii:TempC), names_to = "taxa", values_to = "biomass"), aes(y = log(biomass+1), x = Sample_date, color = Sample_site)) +
   geom_point() +
   facet_wrap(vars(taxa))
+
+ggplot(ZP4, aes(y = TempC, x = Sample_date, color = Sample_site)) +
+  geom_point()
+
+ggplot(ZP4 %>% 
+         mutate(doy = as.numeric(strftime(Sample_date, format = "%j")),
+                Y = as.numeric(strftime(Sample_date, format = "%Y"))), aes(y = TempC, x = doy, color = Sample_site)) +
+  geom_point() +
+  facet_wrap(vars(Y))
+
+ggplot(ZP4 %>% 
+         mutate(doy = as.numeric(strftime(Sample_date, format = "%j")),
+                Y = as.numeric(strftime(Sample_date, format = "%Y"))), aes(y = log(Cladocera+1), x = doy, color = Sample_site)) +
+  geom_point() +
+  facet_wrap(vars(Y))
+
+ggplot(ZP4 %>% 
+         mutate(doy = as.numeric(strftime(Sample_date, format = "%j")),
+                Y = as.numeric(strftime(Sample_date, format = "%Y"))), aes(y = log(Calanoida+1), x = doy, color = Sample_site)) +
+  geom_point() +
+  facet_wrap(vars(Y))
 
 ggplot(ZP4 %>% 
          pivot_longer(cols = c(Calanoida_Nauplii:Surface_temp), names_to = "taxa", values_to = "biomass") %>% 
@@ -167,4 +191,6 @@ ggplot(ZP4 %>%
 
 
 # Write .csv file -- change filepath as needed.
-write.csv(ZP4, file.path(here::here("03_exports","Amidon_LEPAS_WB_15_19.csv")))
+write.csv(ZP4, file.path(here::here("03_exports","Amidon_LEPAS_WB_95_19.csv")))
+
+save.image(file.path(here::here("04_SavedRimages","AmidonExport20210203_Rdat")))
