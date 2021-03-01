@@ -159,13 +159,26 @@ FTG2 <- FTG1 %>%
   mutate(across(c(Genus_sp_95toPresent, biop_152_codes, biop_152_names), factor)) %>% 
   # correcting a typo in the biop codes
   mutate(biop_152_names = fct_recode(biop_152_names, "Cop eggs" = "Cop  eggs")) %>% 
-  # grouping by Smp ID, ZZZ, and Life stage2, rest along for ride - removing Genus_sp_95toPresent &Life_stage2
-  group_by(Sample_ID, biop_152_names, Sample_date, Sample_site, biop_152_codes)%>% 
+  # BEING VERY CAUTIOUS ABOUT AGGREGATING ACROSS THESE GROUPS
+  # grouping by Smp ID and Genus_sp_lifestage rest along for ride
+    group_by(Sample_ID, Genus_sp_lifestage, Life_stage2, Sample_date, Sample_site, biop_152_codes, biop_152_names, Genus_sp_95toPresent) %>% 
+  summarize(Number_counted = sum(Number_counted, na.rm=T),
+            Zoop_density = sum(Zoop_density, na.rm=T),
+            Zoop_biomass = sum(Zoop_biomass, na.rm=T),
+            Zoop_len_avg = mean(Zoop_len_avg, na.rm=T)) %>% 
+  ungroup() %>% 
+  # grouping by Smp ID, Genus_sp_95toPresent, and Life stage2, rest along for ride - removing Genus_sp_lifestage
+  group_by(Sample_ID, Genus_sp_95toPresent, Life_stage2, Sample_date, Sample_site)%>% 
   summarize(Number_counted = sum(Number_counted, na.rm=T),
             Zoop_density = sum(Zoop_density, na.rm=T),
             Zoop_biomass = sum(Zoop_biomass, na.rm=T),
             Zoop_len_avg = mean(Zoop_len_avg, na.rm=T)) %>%
-  mutate(Sample_date = as.POSIXct(Sample_date, format = "%Y-%m-%d")) 
+  mutate(Sample_date = as.POSIXct(Sample_date, format = "%Y-%m-%d")) %>% 
+  ungroup() %>% 
+  select(-Number_counted, -Zoop_len_avg) %>% 
+  filter(Sample_site == "37-890") %>% 
+  filter(Life_stage2 != "Egg") %>% 
+  droplevels()
 
 # THIS INCLUDES BOSMINA AND EUBOSMINA. THOSE REALLY CAN NOT BE IDENTIFIED.
 
@@ -181,7 +194,7 @@ summary(FTG2)
 
 # are there dups
 FTG2c <- FTG2 %>% 
-  mutate(key = paste0(Sample_ID, "_", biop_152_names),
+  mutate(key = paste0(Sample_ID, "_", Genus_sp_95toPresent),
          dups = duplicated(key),
          Sample_date = as.POSIXct(Sample_date, format = "%Y-%m-%d"))
 
@@ -198,19 +211,19 @@ FTG2c[FTG2c$dups == TRUE, ]
 # quick plot to check for weird data
 ggplot(FTG2, aes(y = log(Zoop_density+1), x = Sample_date, color = Sample_site)) +
   geom_point() +
-  facet_wrap(vars(biop_152_names), scales = "free_y")
+  facet_wrap(vars(Genus_sp_95toPresent), scales = "free_y")
 
 ggplot(FTG2, aes(y = Zoop_density, x = Sample_date, color = Sample_site)) +
   geom_point() +
-  facet_wrap(vars(biop_152_names), scales = "free_y")
+  facet_wrap(vars(Genus_sp_95toPresent)) #, scales = "free_y"
 
 ggplot(FTG2, aes(y = log(Zoop_biomass+1), x = Sample_date, color = Sample_site)) +
   geom_point() +
-  facet_wrap(vars(biop_152_names), scales = "free_y")
+  facet_wrap(vars(Genus_sp_95toPresent)) #, scales = "free_y"
 
 ggplot(FTG2, aes(y = Zoop_biomass, x = Sample_date, color = Sample_site)) +
   geom_point() +
-  facet_wrap(vars(biop_152_names), scales = "free_y")
+  facet_wrap(vars(Genus_sp_95toPresent))#, scales = "free_y"
 
 # Write .csv file -- change filepath as needed.
-write.csv(FTG2, file.path(here::here("03_exports","FTGdata_2020.csv")))
+write.csv(FTG2, file.path(here::here("03_exports","36893_2019_4Nate.csv")))
