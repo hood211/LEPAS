@@ -204,6 +204,7 @@ FTG1 <- Zfin3 %>%
   # make all younger individuals immatures - year-to-year comparisons are not possible without this
   # Limnocalanus is the only copepod this doesn't apply too because identified to species as immature
   # Ultimately this places these younger individuals into "othercala" and othercyclo"
+  # this puts diaptomid and temoridae immature into the Calanoida immature
   mutate(Genus_sp_lifestage = ifelse(Order1=="Calanoida" & Life_stage=="Younger", "Calanoida_immature", Genus_sp_lifestage),
          Genus_sp_lifestage = ifelse(Order1=="Cyclopoida" & Life_stage=="Younger", "Cyclopidae_immature", Genus_sp_lifestage)) %>% 
   # make new lifestage with younger/older combined and Egg
@@ -252,10 +253,9 @@ LEPASgenSp <- dbGetQuery(lpdb, "SELECT
   # also making a biop codes that are consistent across time
   mutate(biop_152_names95toPres = biop_152_names,
          # diap immature and Temoridae immature were created in ~ 2014
+         # diaptomid and temoridae stuff is book keeping because the reapportionment removes them
          biop_152_names95toPres = ifelse(biop_152_names95toPres == "Diaptomidae.immature", "othercala",
-                                         ifelse(biop_152_names95toPres == "Dia.Birg", "othercala",
-                                                ifelse(biop_152_names95toPres == "Temoridae.immature", "othercala",
-                                                       ifelse(biop_152_names95toPres == "Cy.Scut", "othercyclo",biop_152_names95toPres))))) %>% 
+                                         ifelse(biop_152_names95toPres == "Temoridae.immature", "othercala", biop_152_names95toPres))) %>% 
   # also the Bosminidae can't really be identified to species
   mutate(biop_152_names95toPres = ifelse(biop_152_names95toPres == "Eub.Coreg" | biop_152_names95toPres == "Bo.Longer", "Bosminidae", biop_152_names95toPres))
 
@@ -308,14 +308,14 @@ FTG3 <- FTG2 %>%
 
 # quick plot to check for weird data
 
-FTG3 <- FTG2 %>% 
+FTG4 <- FTG3 %>% 
   mutate(Y = as.numeric(as.character(strftime(Sample_date, format = "%Y"))))
 
 pdf("FTGcheckPlots.pdf", height = 8, width = 13)
-for(i in 1:length(unique(FTG3$Y))){
+for(i in 1:length(unique(FTG4$Y))){
   # i = 1
-  YEAR = unique(FTG3$Y)[i]
-  plot_i <- ggplot(FTG3 %>% 
+  YEAR = unique(FTG4$Y)[i]
+  plot_i <- ggplot(FTG4 %>% 
            filter(Y == YEAR), aes(y = Zoop_biomass, x = Sample_date, color = Sample_site)) +
     geom_point() +
     facet_wrap(vars(biop_152_names), scales = "free_y") +
@@ -325,10 +325,10 @@ for(i in 1:length(unique(FTG3$Y))){
 dev.off()
 
 pdf("FTGcheckPlotsDensity.pdf", height = 8, width = 13)
-for(i in 1:length(unique(FTG3$Y))){
+for(i in 1:length(unique(FTG4$Y))){
   # i = 1
-  YEAR = unique(FTG3$Y)[i]
-  plot_i <- ggplot(FTG3 %>% 
+  YEAR = unique(FTG4$Y)[i]
+  plot_i <- ggplot(FTG4 %>% 
                      filter(Y == YEAR), aes(y = Zoop_density, x = Sample_date, color = Sample_site)) +
     geom_point() +
     facet_wrap(vars(biop_152_names), scales = "free_y") +
@@ -340,6 +340,7 @@ dev.off()
 
 
 # Write .csv file -- change filepath as needed.
-write.csv(FTG2, file.path(here::here("03_exports","FTGdata_01to20.csv")))
+write.csv(FTG3, file.path(here::here("03_exports","FTGdata_01to20.csv")))
 
 save.image(file.path(here::here("04_SavedRimages","FTGdata_01to20.R")))
+# load(file.path(here::here("04_SavedRimages","FTGdata_01to20.R")))
