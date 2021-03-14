@@ -300,35 +300,46 @@ FTG2c[FTG2c$dups == TRUE, ]
 # adding in the biop_names that are consistent
 FTG3 <- FTG2 %>% 
   left_join(LEPASgenSp %>% 
-              select(biop_152_names, biop_152_names95toPres), by = "biop_152_names")
+              select(biop_152_names, biop_152_names95toPres) %>% 
+              # duplicates
+              distinct(), by = "biop_152_names")
 
 
-##### stopped here, need to figure out the join above. its adding a lot of values
-
-# summary by key
-# not sure this is useful
-# FTG2c %>%
-#   split(.$key) %>%
-#   map(summary)
 
 # quick plot to check for weird data
-ggplot(FTG2, aes(y = log(Zoop_density+1), x = Sample_date, color = Sample_site)) +
-  geom_point() +
-  facet_wrap(vars(biop_152_names), scales = "free_y")
 
-ggplot(FTG2, aes(y = Zoop_density, x = Sample_date, color = Sample_site)) +
-  geom_point() +
-  facet_wrap(vars(biop_152_names), scales = "free_y")
+FTG3 <- FTG2 %>% 
+  mutate(Y = as.numeric(as.character(strftime(Sample_date, format = "%Y"))))
 
-ggplot(FTG2, aes(y = log(Zoop_biomass+1), x = Sample_date, color = Sample_site)) +
-  geom_point() +
-  facet_wrap(vars(biop_152_names), scales = "free_y")
+pdf("FTGcheckPlots.pdf", height = 8, width = 13)
+for(i in 1:length(unique(FTG3$Y))){
+  # i = 1
+  YEAR = unique(FTG3$Y)[i]
+  plot_i <- ggplot(FTG3 %>% 
+           filter(Y == YEAR), aes(y = Zoop_biomass, x = Sample_date, color = Sample_site)) +
+    geom_point() +
+    facet_wrap(vars(biop_152_names), scales = "free_y") +
+    ggtitle(YEAR)
+  print(plot_i)
+}
+dev.off()
 
-ggplot(FTG2, aes(y = Zoop_biomass, x = Sample_date, color = Sample_site)) +
-  geom_point() +
-  facet_wrap(vars(biop_152_names), scales = "free_y")
+pdf("FTGcheckPlotsDensity.pdf", height = 8, width = 13)
+for(i in 1:length(unique(FTG3$Y))){
+  # i = 1
+  YEAR = unique(FTG3$Y)[i]
+  plot_i <- ggplot(FTG3 %>% 
+                     filter(Y == YEAR), aes(y = Zoop_density, x = Sample_date, color = Sample_site)) +
+    geom_point() +
+    facet_wrap(vars(biop_152_names), scales = "free_y") +
+    ggtitle(YEAR)
+  print(plot_i)
+}
+dev.off()
+
+
 
 # Write .csv file -- change filepath as needed.
-write.csv(FTG2, file.path(here::here("03_exports","FTGdata_2020.csv")))
+write.csv(FTG2, file.path(here::here("03_exports","FTGdata_01to20.csv")))
 
-save.image(file.path(here::here("04_SavedRimages","FTG_exportAnnualData.R")))
+save.image(file.path(here::here("04_SavedRimages","FTGdata_01to20.R")))
