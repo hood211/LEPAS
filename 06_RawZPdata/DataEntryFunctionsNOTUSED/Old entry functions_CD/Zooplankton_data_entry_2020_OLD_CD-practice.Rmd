@@ -1,0 +1,75 @@
+---
+title: "LEPAS Zooplankton Data Entry 2020"
+output: html_document
+---
+
+#### LEPAS data entry ####
+This code enters zooplankton data into the LEPAS database. These front-end functions and the back-end script 
+"Zooplankton_data_entry_functions_2020.R" were modified from Dr. Josh Stone's original versions in January, 2020 
+by Dr. Daniel. R. O'Donnell to be compatible with the overhauled "LEPAS_2020" SQLite database (LEPAS_2020.db), and 
+to accomodate batch submission of datasheets.
+
+Please follow the steps outlined below:
+
+1. Enter the the sampling year (e.g. "2020") and the correct Lake Erie basin (e.g. "WB"). 
+
+2. Make sure the file paths below (in the 'FilePath', "FileName', 'Database', and 'source' lines) point to the correct 
+   data entry spreadsheets and folders that you wish to enter into the database. 
+
+**Only use the correctly formatted data entry sheet that has been provided.**
+
+3. Run the code below by pressing the green arrow -> at the right side of the grey code box.   
+```{r warning=FALSE}
+
+Year <- "2019"
+Basin <- "CB"
+# FileNames <- c("20190422-1279_20m.xlsx","20190422-1281_10m.xlsx","20190506-1279_20m.xlsx","20190524-1279_20m.xlsx","20190606-1279_20m.xlsx")
+# FileNames <- c("20190422-1279_20m.csv","20190422-1281_10m.csv","20190506-1279_20m.csv","20190524-1279_20m.csv","20190606-1279_20m.csv")
+FileNames <- c("20190422-1279_20m.csv")
+FilePath <- paste0("Z:\\Projects\\FADX09_LEPAS\\15-LEPAS Datasheets\\Entered Spreadsheets\\3-Zooplankton\\LEPAS_2019\\2019-CB\\NOT_entered\\")
+Database <- paste0("Z:\\Projects\\FADX09_LEPAS\\2-Finalized_data\\LEPAS_2020 - Copy.db")
+source("Z:\\Projects\\FADX09_LEPAS\\7-Data Entry\\Zooplankton_2020\\Zooplankton_data_entry_functions_2020.R")
+
+step1(FileNames)
+
+```
+
+
+#### Data Check 1 ####
+4. Check that the data have been entered properly, and that 'Number Measured OK' is displayed above for each datasheet.
+   
+5. Type "OK" (including quotes) into the parentheses after 'input1' in the line below and run 
+   the code by pressing the green arrow.
+
+```{r}
+
+input1("OK")
+
+```
+
+
+6. If data have been successfully entered, run the step2 code below by pressing the green arrow.
+
+```{r}
+
+step2(X)
+
+```
+
+
+#### Data Check 2 ####
+7. Check that the data have been entered properly. Look at table titled 'Zoop_final'.
+8. Type "OK" into the parentheses after 'input2' in the line below and run the code by pressing the green arrow.
+
+**This code will also write the datasheet to a .csv and send it to the "Entered" folder**
+
+```{r}
+
+input2("OK")
+
+```
+
+
+
+
+
